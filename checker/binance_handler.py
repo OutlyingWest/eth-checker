@@ -7,11 +7,7 @@ from .unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
-    from_date = convert_date_to_unix_time_by_string('2022-11-1')
-    to_date = convert_date_to_unix_time_by_string('2022-12-1')
-    update_period = 3  # s
-    data_manager = DataManager(from_date, to_date, update_period)
-    await data_manager.update_eth_btc_history_frame()
+    pass
 
 
 class BinanceGetDate:
@@ -82,26 +78,31 @@ class DataManager:
     Allow to define a period of time in which dataframe will contain unchanged and
     size of the dataframe.
     Necessary parameters to create an object:
-        :param from_date: (unix) defines initial start date of getting from binance.
-        :param to_date: (unix) defines initial stop date of getting from binance.
-        :param update_period (seconds): set how often dataframe will update
+    :param from_date: (unix) defines initial start date of getting from binance.
+    :param to_date (unix) defines initial stop date of getting from binance.
+    :param update_period (seconds): set how often dataframe will update.
+    :param sample_time: how often will the data be sampled. For example: 1m, 1h, 1d, 1M.
     """
-    def __init__(self, from_date, to_date, update_period):
+    def __init__(self, from_date, to_date, update_period, sample_time: str):
         self.binance = BinanceGetDate()
-        self.eth_btc_history_frame = pd.DataFrame()
+        self.eth_btc_history_frame = asyncio.Queue(1)
         self.update_period = update_period
         self.start_date = from_date
         self.stop_date = to_date
+        self.sample_time = sample_time
         # Allow to stop update dataframe (turn it to False)
         self.update_allowed = True
 
-    async def update_eth_btc_history_frame(self):
+    async def updating_eth_btc_history_frame(self):
         while self.update_allowed:
             self.start_date += self.update_period
             self.stop_date += self.update_period
-            self.eth_btc_history_frame = await self.binance.load_pairs_history_frame(self.start_date, self.stop_date)
-            print(self.eth_btc_history_frame)
+            eth_btc_history_frame = await self.binance.load_pairs_history_frame(self.start_date,
+                                                                                self.stop_date,
+                                                                                interval=self.sample_time)
+            await self.eth_btc_history_frame.put(eth_btc_history_frame)
             await asyncio.sleep(self.update_period)
+            print('Hello updating in manager')
 
     def stop_updating(self):
         """ Call this method to stop update dataframe """
