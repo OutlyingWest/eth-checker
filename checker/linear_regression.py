@@ -2,7 +2,7 @@ import asyncio
 
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from checker.binance_handler import BinanceGetDate, DataManager
+from checker.binance_handler import BinanceGetDate, HistoryDataManager
 from checker.unix_time import convert_date_to_unix_time_by_string
 
 
