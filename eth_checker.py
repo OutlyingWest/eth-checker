@@ -6,17 +6,25 @@ from checker.unix_time import convert_date_to_unix_time_by_string
 
 async def main():
     model = LinearRegressionModel()
-    from_date = convert_date_to_unix_time_by_string('2022-1-15')
-    to_date = convert_date_to_unix_time_by_string('2023-2-15')
+    initial_from_date = convert_date_to_unix_time_by_string('2022-1-15')
+    initial_to_date = convert_date_to_unix_time_by_string('2023-2-15')
     update_period = 6
     tasks = [
-        train_eth_btc_model(model, from_date, to_date, update_period, sample_time='1d'),
+        train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time='1d'),
     ]
     await asyncio.gather(*tasks)
 
 
-async def train_eth_btc_model(linear_model, from_date, to_date, update_period, sample_time: str):
-    """ Load historical data for ETHUSDT and BTCUSDT prices """
+async def train_eth_btc_model(linear_model: LinearRegressionModel, from_date, to_date,
+                              update_period: int, sample_time: str):
+    """
+    Retrain model with an actual ETHUSDT, BTCUSDT pairs data.
+    :param linear_model: LinearRegressionModel() class object.
+    :param from_date: (unix) defines initial start date of getting from binance.
+    :param to_date: (unix) defines initial stop date of getting from binance.
+    :param update_period: how often model will update.
+    :param sample_time: how often will the data be sampled. For example: 1m, 1h, 1d, 1M.
+    """
     manager = DataManager(from_date, to_date,
                           update_period=update_period,
                           sample_time=sample_time)
