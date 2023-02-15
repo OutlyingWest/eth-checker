@@ -3,7 +3,7 @@ import asyncio
 import json
 import pandas as pd
 from pprint import pprint
-from .unix_time import convert_date_to_unix_time_by_string
+from checker.unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
@@ -84,7 +84,6 @@ class DataManager:
     :param sample_time: how often will the data be sampled. For example: 1m, 1h, 1d, 1M.
     """
     def __init__(self, from_date, to_date, update_period, sample_time: str):
-        self.binance = BinanceGetDate()
         self.eth_btc_history_frame = asyncio.Queue(1)
         self.update_period = update_period
         self.start_date = from_date
@@ -93,16 +92,16 @@ class DataManager:
         # Allow to stop update dataframe (turn it to False)
         self.update_allowed = True
 
-    async def updating_eth_btc_history_frame(self):
-        while self.update_allowed:
-            self.start_date += self.update_period
-            self.stop_date += self.update_period
-            eth_btc_history_frame = await self.binance.load_pairs_history_frame(self.start_date,
-                                                                                self.stop_date,
-                                                                                interval=self.sample_time)
-            await self.eth_btc_history_frame.put(eth_btc_history_frame)
-            await asyncio.sleep(self.update_period)
-            print('Hello updating in manager')
+    async def update_eth_btc_history_frame(self):
+        self.start_date += self.update_period
+        self.stop_date += self.update_period
+        binance = BinanceGetDate()
+        eth_btc_history_frame = await binance.load_pairs_history_frame(self.start_date,
+                                                                       self.stop_date,
+                                                                       interval=self.sample_time)
+        await binance.session.close()
+        await self.eth_btc_history_frame.put(eth_btc_history_frame)
+        print('Hello updating in manager')
 
     def stop_updating(self):
         """ Call this method to stop update dataframe """

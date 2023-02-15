@@ -21,12 +21,13 @@ class LinearRegressionModel:
             self.eth_btc_data['ETHUSDT'].diff() / self.eth_btc_data['ETHUSDT'].shift(1)
         self.eth_btc_data.dropna(inplace=True)
 
-    async def train_model(self):
+    def train_model(self):
         """ Train the regression model """
-        tran_data = self.eth_btc_data[['ETHUSDT', 'BTCUSDT']]
         self.calculate_price_movements()
+        trane_data = self.eth_btc_data[['ETHUSDT', 'BTCUSDT']]
         target_values = self.eth_btc_data['ETHUSDT_price_movements']
-        self.model = LinearRegression().fit(tran_data, target_values)
+        print(self.eth_btc_data)
+        self.model.fit(trane_data, target_values)
         print('Hello train')
 
 
