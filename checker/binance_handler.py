@@ -10,7 +10,9 @@ async def main():
     binance = BinanceGetDate()
     await binance.session.close()
     tasks = [
-        binance.start_stream_recent_pairs_data(['btcusdt', 'ethusdt']),
+        binance.stream_recent_pairs_data(['btcusdt', 'ethusdt']),
+        get_eth_queue(binance),
+        get_btc_queue(binance),
     ]
     await asyncio.gather(*tasks)
 
@@ -75,7 +77,7 @@ class BinanceGetDate:
         self.eth_btc_history_frame = await self.make_pair_history_data_frame(pair_history_responses)
         return self.eth_btc_history_frame
 
-    async def start_stream_recent_pairs_data(self, pairs: list):
+    async def stream_recent_pairs_data(self, pairs: list):
         async with aiohttp.ClientSession() as session:
             sockets_list = []
             for pair in pairs:
@@ -111,6 +113,16 @@ class BinanceGetDate:
             # Close websockets
             for socket in sockets_list:
                 await socket.close()
+
+
+async def get_eth_queue(binance: BinanceGetDate):
+    while True:
+        print('I take eth queue:', await binance.eth_price_queue.get())
+
+
+async def get_btc_queue(binance: BinanceGetDate):
+    while True:
+        print('I take btc queue:', await binance.btc_price_queue.get())
 
 
 class DataManager:
