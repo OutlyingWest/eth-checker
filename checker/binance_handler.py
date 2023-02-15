@@ -112,6 +112,11 @@ class BinanceGetDate:
             for socket in sockets_list:
                 await socket.close()
 
+    async def get_price_from_btc_queue(self):
+        await self.eth_price_queue.get()
+    async def get_price_from_eth_queue(self):
+        await self.btc_price_queue.get()
+
 
 class HistoryDataManager:
     """
