@@ -3,23 +3,22 @@ import asyncio
 import json
 import pandas as pd
 from pprint import pprint
-from unix_time import convert_to_unix_time_by_input
+from .unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
-    # print('Start date of period')
-    # from_date = convert_to_unix_time_by_input()
-    # print('Stop date of period')
-    # to_date = convert_to_unix_time_by_input()
-    from_date = 1640995200000
-    to_date = 1643673599999
-    binance = BinanceGetDate()
-    pair_history = await binance.get_pair_history(pair='ETHBTC', from_date=from_date, to_date=to_date)
-    pprint(pair_history)
-    await binance.session.close()
+    from_date = convert_date_to_unix_time_by_string('2022-11-1')
+    to_date = convert_date_to_unix_time_by_string('2022-12-1')
+    update_period = 3  # s
+    data_manager = DataManager(from_date, to_date, update_period)
+    await data_manager.update_eth_btc_history_frame()
 
 
 class BinanceGetDate:
+    """
+    Allow to get data about ETHUSDT, BTCUSDT pairs for a period
+    and save it to dataframe
+    """
     def __init__(self):
         self.session = aiohttp.ClientSession()
         self.pairs = {}
@@ -53,22 +52,60 @@ class BinanceGetDate:
         eth_btc_pair_histories = pd.concat(pair_frames, axis=1)
         return eth_btc_pair_histories
 
-    async def load_pairs_history_frame(self, from_date, to_date):
-        """ Load data about ETHUSDT, BTCUSDT and close price time for a period """
+    async def load_pairs_history_frame(self, from_date, to_date, interval='1d'):
+        """
+        Load data about ETHUSDT, BTCUSDT and close price time for a period
+        :param from_date: (unix) defines initial start date of getting from binance.
+        :param to_date: (unix) defines initial stop date of getting from binance.
+        :param interval: interval of taking of currency values from binance in format 1M, 1d, 1m
+         """
         get_tasks = [self.load_pair_history(pair='ETHUSDT',
                                             from_date=from_date,
-                                            to_date=to_date),
+                                            to_date=to_date,
+                                            interval=interval),
                      self.load_pair_history(pair='BTCUSDT',
                                             from_date=from_date,
-                                            to_date=to_date)
+                                            to_date=to_date,
+                                            interval=interval)
                      ]
         pair_history_responses = await asyncio.gather(*get_tasks)
-        await self.session.close()
         self.eth_btc_history_frame = await self.make_pair_history_data_frame(pair_history_responses)
         return self.eth_btc_history_frame
 
     async def get_recent_pair_data(self):
         pass
+
+
+class DataManager:
+    """
+    Perform management of updating ETHUSDT, BTCUSDT pairs dataframe.
+    Allow to define a period of time in which dataframe will contain unchanged and
+    size of the dataframe.
+    Necessary parameters to create an object:
+        :param from_date: (unix) defines initial start date of getting from binance.
+        :param to_date: (unix) defines initial stop date of getting from binance.
+        :param update_period (seconds): set how often dataframe will update
+    """
+    def __init__(self, from_date, to_date, update_period):
+        self.binance = BinanceGetDate()
+        self.eth_btc_history_frame = pd.DataFrame()
+        self.update_period = update_period
+        self.start_date = from_date
+        self.stop_date = to_date
+        # Allow to stop update dataframe (turn it to False)
+        self.update_allowed = True
+
+    async def update_eth_btc_history_frame(self):
+        while self.update_allowed:
+            self.start_date += self.update_period
+            self.stop_date += self.update_period
+            self.eth_btc_history_frame = await self.binance.load_pairs_history_frame(self.start_date, self.stop_date)
+            print(self.eth_btc_history_frame)
+            await asyncio.sleep(self.update_period)
+
+    def stop_updating(self):
+        """ Call this method to stop update dataframe """
+        self.update_allowed = False
 
 
 if __name__ == "__main__":
