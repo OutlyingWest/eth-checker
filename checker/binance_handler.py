@@ -10,7 +10,7 @@ async def main():
     binance = BinanceGetDate()
     await binance.session.close()
     tasks = [
-        binance.get_stream_recent_pairs_data(['btcusdt', 'ethusdt']),
+        binance.get_stream_of_pairs_data(['btcusdt', 'ethusdt']),
     ]
     await asyncio.gather(*tasks)
 
@@ -75,7 +75,7 @@ class BinanceGetDate:
         self.eth_btc_history_frame = await self.make_pair_history_data_frame(pair_history_responses)
         return self.eth_btc_history_frame
 
-    async def get_stream_recent_pairs_data(self, pairs: list):
+    async def get_stream_of_pairs_data(self, pairs: list):
         async with aiohttp.ClientSession() as session:
             sockets_list = []
             for pair in pairs:
@@ -97,12 +97,11 @@ class BinanceGetDate:
                 if message.type == aiohttp.WSMsgType.TEXT:
                     json_ticker = json.loads(message.data)
                     if json_ticker.get('c'):
-                        print(json_ticker.get('s'), json_ticker.get('c'))
                         # Put ticker price to the queue
                         if json_ticker.get('s') == 'BTCUSDT':
-                            await self.btc_price_queue.put(json_ticker.get('c'))
+                            await self.btc_price_queue.put(float(json_ticker.get('c')))
                         elif json_ticker.get('s') == 'ETHUSDT':
-                            await self.eth_price_queue.put(json_ticker.get('c'))
+                            await self.eth_price_queue.put(float(json_ticker.get('c')))
                 elif message.type == aiohttp.WSMsgType.ERROR:
                     print('Stream Error')
                     break
@@ -113,9 +112,10 @@ class BinanceGetDate:
                 await socket.close()
 
     async def get_price_from_btc_queue(self):
-        await self.eth_price_queue.get()
+        return await self.eth_price_queue.get()
+
     async def get_price_from_eth_queue(self):
-        await self.btc_price_queue.get()
+        return await self.btc_price_queue.get()
 
 
 class HistoryDataManager:

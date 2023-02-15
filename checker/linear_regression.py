@@ -12,7 +12,8 @@ async def main():
 
 class LinearRegressionModel:
     def __init__(self):
-        self.model = LinearRegression()
+        self.model = asyncio.Queue(1)
+        # self.model = LinearRegression()
         # data for train model
         self.eth_btc_data = pd.DataFrame()
 
@@ -21,13 +22,13 @@ class LinearRegressionModel:
             self.eth_btc_data['ETHUSDT'].diff() / self.eth_btc_data['ETHUSDT'].shift(1)
         self.eth_btc_data.dropna(inplace=True)
 
-    def train_model(self):
+    async def train_model(self):
         """ Train the regression model """
         self.calculate_price_movements()
         trane_data = self.eth_btc_data[['ETHUSDT', 'BTCUSDT']]
         target_values = self.eth_btc_data['ETHUSDT_price_movements']
         print(self.eth_btc_data)
-        self.model.fit(trane_data, target_values)
+        await self.model.put(LinearRegression().fit(trane_data, target_values))
         print('Hello train')
 
 
