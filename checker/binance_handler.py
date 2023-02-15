@@ -7,7 +7,12 @@ from checker.unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
-    pass
+    binance = BinanceGetDate()
+    await binance.session.close()
+    tasks = [
+        binance.start_stream_recent_pairs_data(['btcusdt', 'ethusdt']),
+    ]
+    await asyncio.gather(*tasks)
 
 
 class BinanceGetDate:
@@ -19,6 +24,8 @@ class BinanceGetDate:
         self.session = aiohttp.ClientSession()
         self.pairs = {}
         self.eth_btc_history_frame = pd.DataFrame()
+        self.btc_price_queue = asyncio.Queue(1)
+        self.eth_price_queue = asyncio.Queue(1)
 
     async def load_pair_history(self, pair: str, from_date: int, to_date: int, interval='1d'):
         """ Returns pair history in json object """
@@ -68,8 +75,42 @@ class BinanceGetDate:
         self.eth_btc_history_frame = await self.make_pair_history_data_frame(pair_history_responses)
         return self.eth_btc_history_frame
 
-    async def get_recent_pair_data(self):
-        pass
+    async def start_stream_recent_pairs_data(self, pairs: list):
+        async with aiohttp.ClientSession() as session:
+            sockets_list = []
+            for pair in pairs:
+                socket = await session.ws_connect(f'wss://stream.binance.com:9443/ws/{pair}@ticker')
+                # Send subscription message
+                subscribe_message = {
+                    "method": "SUBSCRIBE",
+                    "params": [
+                        f"{pair}@ticker"
+                    ],
+                    "id": 1
+                }
+                await socket.send_json(subscribe_message)
+                sockets_list.append(socket)
+            # Wait for messages from all websockets
+            while sockets_list:
+                socket = sockets_list.pop()
+                message = await socket.receive()
+                if message.type == aiohttp.WSMsgType.TEXT:
+                    json_ticker = json.loads(message.data)
+                    if json_ticker.get('c'):
+                        print(json_ticker.get('s'), json_ticker.get('c'))
+                        # Put ticker price to the queue
+                        if json_ticker.get('s') == 'BTCUSDT':
+                            await self.btc_price_queue.put(json_ticker.get('c'))
+                        elif json_ticker.get('s') == 'ETHUSDT':
+                            await self.eth_price_queue.put(json_ticker.get('c'))
+                elif message.type == aiohttp.WSMsgType.ERROR:
+                    print('Stream Error')
+                    break
+                # For interleaving sockets
+                sockets_list.insert(0, socket)
+            # Close websockets
+            for socket in sockets_list:
+                await socket.close()
 
 
 class DataManager:
@@ -89,8 +130,6 @@ class DataManager:
         self.start_date = from_date
         self.stop_date = to_date
         self.sample_time = sample_time
-        # Allow to stop update dataframe (turn it to False)
-        self.update_allowed = True
 
     async def update_eth_btc_history_frame(self):
         self.start_date += self.update_period
@@ -102,10 +141,6 @@ class DataManager:
         await binance.session.close()
         await self.eth_btc_history_frame.put(eth_btc_history_frame)
         print('Hello updating in manager')
-
-    def stop_updating(self):
-        """ Call this method to stop update dataframe """
-        self.update_allowed = False
 
 
 if __name__ == "__main__":
