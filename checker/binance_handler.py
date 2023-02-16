@@ -4,15 +4,6 @@ import aiohttp
 import pandas as pd
 
 
-async def main():
-    binance = BinanceGetDate()
-    await binance.session.close()
-    tasks = [
-        binance.get_stream_of_pairs_data(['btcusdt', 'ethusdt']),
-    ]
-    await asyncio.gather(*tasks)
-
-
 class BinanceGetDate:
     """
     Allow to get data about ETHUSDT, BTCUSDT pairs for a period
@@ -153,8 +144,3 @@ class HistoryDataManager:
                                                                        interval=self.sample_time)
         await binance.session.close()
         await self.eth_btc_history_frame.put(eth_btc_history_frame)
-
-
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete((main()))

@@ -1,23 +1,29 @@
 import asyncio
 import pandas as pd
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 from checker.linear_regression import LinearRegressionModel, LinearRegression
 from checker.unix_time import convert_date_to_unix_time_by_string, time_to_seconds, ResponseTimer
 from checker.binance_handler import HistoryDataManager, BinanceGetDate
 
 
 async def main():
+    """
+    Creates and executes all tasks asynchronously.
+    - Allows to set the start and end dates of collecting historical data for training. Format Y-m-d
+    - Allows to set the period of updating historical data. Format: integer.
+    - Allows to set sample of getting historical data from Binance. Format: 1m, 3h, 2d, 1M
+    """
     model = LinearRegressionModel()
     binance = BinanceGetDate()
-    # Sets dates for loading historical data on currency pairs
-    initial_from_date = convert_date_to_unix_time_by_string('2023-1-15')
-    initial_to_date = convert_date_to_unix_time_by_string('2023-2-15')
+    # Set dates for define period of loading historical data on currency pairs
+    initial_from_date = convert_date_to_unix_time_by_string('2023-2-7')
+    initial_to_date = convert_date_to_unix_time_by_string('2023-2-16')
     # Set how often historical data needs to update
-    update_period = 15  # time_to_seconds()
+    update_period = time_to_seconds(minutes=1)
+    # Set sample of getting data from Binance
+    sample_time = '1m'
     # Tasks for asynchronous execution
     tasks = [
-        train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time='1m'),
+        train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time=sample_time),
         binance.get_stream_of_pairs_data(['btcusdt', 'ethusdt']),
         check_eth_course(binance, model),
     ]
@@ -40,42 +46,44 @@ async def train_eth_btc_model(linear_model: LinearRegressionModel, from_date, to
     while True:
         await manager.update_eth_btc_history_frame()
         eth_btc_history_frame = await manager.eth_btc_history_frame.get()
-        linear_model.get_eth_btc_frame(eth_btc_history_frame)
+        linear_model.put_eth_btc_frame(eth_btc_history_frame)
         await linear_model.train_model()
-        # await plotter(eth_btc_history_frame)
         await asyncio.sleep(update_period)
 
 
-async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearRegressionModel):
+async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearRegressionModel,
+                           print_settings_info=False):
     """
     This task monitors the price of the futures and, using the linear regression method,
     determines its own movements in the price of ETH. If the price changes by 1% in the last 60 minutes,
     the task prints a message to the console.
     :param binance: LinearRegressionModel() class object.
     :param linear_regression: (unix) defines initial start date of getting from binance.
+    :param print_settings_info: Allow to print information about ETHUSDT, BTCUSDT current prices,
+                                ETHUSDT predicted price and price changes.
     """
-    # response_timer_task = asyncio.create_task(response_timer(10))
+    # Сreation of a timer object that determines the frequency of sending messages about exceeding the price
     response_timer = ResponseTimer()
-    asyncio.create_task(response_timer.run(timeout=10))
+    response_timeout = time_to_seconds(minutes=60)  # 60 minutes
+    asyncio.create_task(response_timer.run(timeout=response_timeout))
     while True:
         # Get the current ETHUSDT and BTCUSDT prices
         current_eth_price = await binance.get_price_from_eth_queue()
         current_btc_price = await binance.get_price_from_btc_queue()
-        print('ETHUSDT:', current_eth_price)
-        print('BTCUSDT:', current_btc_price)
 
         # Use the trained model to predict the movement of the ETHUSDT price
         if linear_regression.model:
             linear_regression_model: LinearRegression = linear_regression.model
-            eth_movement_prediction = linear_regression_model.predict(pd.DataFrame({'ETHUSDT': [current_eth_price],
-                                                                                    'BTCUSDT': [current_btc_price]}))
+            eth_movement_prediction = linear_regression_model.predict(pd.DataFrame({'BTCUSDT': [current_btc_price]}))
 
             # Check if the price has changed by 1% in the last 60 minutes
             is_price_changed = False
             last_exceeded_eth_price = None
             price_change = abs(eth_movement_prediction[0] - current_eth_price) / current_eth_price
-            print('price change:', price_change, 'eth_movement_prediction[0]:', eth_movement_prediction[0],
-                  'current_eth_price:', current_eth_price)
+            if print_settings_info:
+                print(f'ETHUSDT prices: Predicted:{current_eth_price} Current:{eth_movement_prediction[0]:.2f} '
+                      f'Price change:{price_change:.2f} '
+                      f'BTCUSDT price current:{current_btc_price}')
             if price_change >= 0.01:
                 is_price_changed = True
                 last_exceeded_eth_price = current_eth_price
@@ -85,26 +93,6 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
                 await response_timer.restart()
                 print('The ETHUSDT price has changed by 1% in the last 60 minutes. ' +
                       f'Last ETHUSDT price:{last_exceeded_eth_price}')
-
-
-
-
-
-
-
-async def plotter(data_frame: pd.DataFrame):
-    mpl.use('TkAgg')  # !IMPORTANT
-    # plot the data
-    fig, ax = plt.subplots()
-    ax.plot(data_frame['close_time'], data_frame['ETHUSDT'])
-    ax.plot(data_frame['close_time'], data_frame['BTCUSDT'])
-    ax.legend(labels=('ETHUSDT', 'BTCUSDT'))
-    # add labels and title
-    plt.xlabel('time')
-    plt.ylabel('crypto')
-    plt.title('Cypto Plot')
-    # show the plot
-    plt.show()
 
 
 if __name__ == "__main__":

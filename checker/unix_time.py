@@ -2,10 +2,6 @@ import asyncio
 import datetime
 
 
-def main():
-    print(time_to_seconds(days=1))
-
-
 def convert_to_unix_time_ms(year, month, day):
     """ Returns time(ms) in unix format UTC """
     date_obj = datetime.datetime(year, month, day)
@@ -85,7 +81,3 @@ class ResponseTimer:
         """ Restart timer. """
         self.restarted = True
         await self.timeout_passed_queue.get()
-
-
-if __name__ == "__main__":
-    main()
