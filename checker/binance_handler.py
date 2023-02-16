@@ -49,7 +49,7 @@ class BinanceGetDate:
                     pair_close_time_col = [int(pair_history_kline[6]) for pair_history_kline in pair_history_value]
                     pair_frames.append(pd.DataFrame({pair_name: pair_close_price_col,
                                                      'close_time': pair_close_time_col}))
-                else:
+                elif pair_name == 'ETHUSDT':
                     pair_frames.append(pd.DataFrame({pair_name: pair_close_price_col}))
 
         eth_btc_pair_histories = pd.concat(pair_frames, axis=1)
@@ -96,7 +96,7 @@ class BinanceGetDate:
                 message = await socket.receive()
                 if message.type == aiohttp.WSMsgType.TEXT:
                     json_ticker = json.loads(message.data)
-                    if json_ticker.get('c'):
+                    if json_ticker.get('s') and json_ticker.get('c'):
                         # Put ticker price to the queue
                         if json_ticker.get('s') == 'BTCUSDT':
                             await self.btc_price_queue.put(float(json_ticker.get('c')))
@@ -112,10 +112,10 @@ class BinanceGetDate:
                 await socket.close()
 
     async def get_price_from_btc_queue(self):
-        return await self.eth_price_queue.get()
+        return await self.btc_price_queue.get()
 
     async def get_price_from_eth_queue(self):
-        return await self.btc_price_queue.get()
+        return await self.eth_price_queue.get()
 
 
 class HistoryDataManager:
