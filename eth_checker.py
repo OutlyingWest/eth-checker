@@ -74,8 +74,8 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
             is_price_changed = False
             last_exceeded_eth_price = None
             price_change = abs(eth_movement_prediction[0] - current_eth_price) / current_eth_price
-            # print('price change:', price_change, 'eth_movement_prediction[0]:', eth_movement_prediction[0],
-            #       'current_eth_price:', current_eth_price)
+            print('price change:', price_change, 'eth_movement_prediction[0]:', eth_movement_prediction[0],
+                  'current_eth_price:', current_eth_price)
             if price_change >= 0.01:
                 is_price_changed = True
                 last_exceeded_eth_price = current_eth_price
