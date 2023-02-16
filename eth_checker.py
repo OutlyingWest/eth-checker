@@ -1,19 +1,20 @@
 import asyncio
 import pandas as pd
-from copy import deepcopy
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 from checker.linear_regression import LinearRegressionModel, LinearRegression
-from checker.unix_time import convert_date_to_unix_time_by_string
+from checker.unix_time import convert_date_to_unix_time_by_string, time_to_seconds, ResponseTimer
 from checker.binance_handler import HistoryDataManager, BinanceGetDate
 
 
 async def main():
     model = LinearRegressionModel()
     binance = BinanceGetDate()
-    initial_from_date = convert_date_to_unix_time_by_string('2022-1-15')
+    initial_from_date = convert_date_to_unix_time_by_string('2023-1-15')
     initial_to_date = convert_date_to_unix_time_by_string('2023-2-15')
-    update_period = 20
+    update_period = 1000000  # time_to_seconds()
     tasks = [
-        train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time='1d'),
+        train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time='1m'),
         binance.get_stream_of_pairs_data(['btcusdt', 'ethusdt']),
         check_eth_course(binance, model),
     ]
@@ -35,23 +36,17 @@ async def train_eth_btc_model(linear_model: LinearRegressionModel, from_date, to
                                  sample_time=sample_time)
     while True:
         await manager.update_eth_btc_history_frame()
-        linear_model.eth_btc_data = await manager.eth_btc_history_frame.get()
+        eth_btc_history_frame = await manager.eth_btc_history_frame.get()
+        linear_model.get_eth_btc_frame(eth_btc_history_frame)
         await linear_model.train_model()
+        # await plotter(eth_btc_history_frame)
         await asyncio.sleep(update_period)
-    # await manager.binance.session.close()
-
-
-async def get_price_from_eth_queue(binance: BinanceGetDate):
-    while True:
-        print('I take eth queue:', await binance.eth_price_queue.get())
-
-
-async def get_price_from_btc_queue(binance: BinanceGetDate):
-    while True:
-        print('I take btc queue:', await binance.btc_price_queue.get())
 
 
 async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearRegressionModel):
+    # response_timer_task = asyncio.create_task(response_timer(10))
+    response_timer = ResponseTimer()
+    asyncio.create_task(response_timer.run(timeout=10))
     while True:
         # Get the current ETHUSDT and BTCUSDT prices
         current_eth_price = await binance.get_price_from_eth_queue()
@@ -60,17 +55,26 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
         print('BTCUSDT:', current_btc_price)
 
         # Use the trained model to predict the movement of the ETHUSDT price
-        if linear_regression.model.full():
-            linear_regression_model: LinearRegression = await linear_regression.model.get()
-        eth_movement_prediction = linear_regression_model.predict(pd.DataFrame({'ETHUSDT': [current_eth_price],
-                                                                                'BTCUSDT': [current_btc_price]}))
+        if linear_regression.model:
+            linear_regression_model: LinearRegression = linear_regression.model
+            eth_movement_prediction = linear_regression_model.predict(pd.DataFrame({'ETHUSDT': [current_eth_price],
+                                                                                    'BTCUSDT': [current_btc_price]}))
 
-        # Check if the price has changed by 1% in the last 60 minutes
-        price_change = abs(eth_movement_prediction[0] - current_eth_price) / current_eth_price
-        print('price change:', price_change, 'eth_movement_prediction[0]:', eth_movement_prediction[0],
-              'current_eth_price:', current_eth_price)
-        if price_change >= 0.01:
-            print("The ETHUSDT price has changed by 1% in the last 60 minutes")
+            # Check if the price has changed by 1% in the last 60 minutes
+            is_price_changed = False
+            last_exceeded_eth_price = None
+            price_change = abs(eth_movement_prediction[0] - current_eth_price) / current_eth_price
+            # print('price change:', price_change, 'eth_movement_prediction[0]:', eth_movement_prediction[0],
+            #       'current_eth_price:', current_eth_price)
+            if price_change >= 0.01:
+                is_price_changed = True
+                last_exceeded_eth_price = current_eth_price
+
+            is_timeout_passed = response_timer.check_timer()
+            if is_timeout_passed and is_price_changed:
+                await response_timer.restart()
+                print('The ETHUSDT price has changed by 1% in the last 60 minutes.' +
+                      f'Last price:{last_exceeded_eth_price}')
 
 
 if __name__ == "__main__":
