@@ -1,9 +1,7 @@
-import aiohttp
-import asyncio
 import json
+import asyncio
+import aiohttp
 import pandas as pd
-from pprint import pprint
-from checker.unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
@@ -40,7 +38,11 @@ class BinanceGetDate:
             return pair_dict
 
     @staticmethod
-    async def make_pair_history_data_frame(pair_histories):
+    async def make_pair_history_data_frame(pair_histories: tuple):
+        """
+        Create a pandas dataframe and returns it.
+        :param pair_histories: pair history tuple, loads from binance.
+        """
         pair_frames = []
         for pair_history in pair_histories:
             for pair_name, pair_history_value in pair_history.items():
@@ -62,6 +64,7 @@ class BinanceGetDate:
         :param to_date: (unix) defines initial stop date of getting from binance.
         :param interval: interval of taking of currency values from binance in format 1M, 1d, 1m
          """
+        print('Updating of history data...')
         get_tasks = [self.load_pair_history(pair='ETHUSDT',
                                             from_date=from_date,
                                             to_date=to_date,
@@ -76,6 +79,10 @@ class BinanceGetDate:
         return self.eth_btc_history_frame
 
     async def get_stream_of_pairs_data(self, pairs: list):
+        """
+        Gets current BTCUSDT and ETHUSDT price data using streaming Binance API.
+        :param pairs: list contains currency names.
+        """
         async with aiohttp.ClientSession() as session:
             sockets_list = []
             for pair in pairs:
@@ -137,6 +144,7 @@ class HistoryDataManager:
         self.sample_time = sample_time
 
     async def update_eth_btc_history_frame(self):
+        """ Update ETHUSDT, BTCUSDT pairs dataframe with time alignment """
         self.start_date += self.update_period
         self.stop_date += self.update_period
         binance = BinanceGetDate()
@@ -145,7 +153,6 @@ class HistoryDataManager:
                                                                        interval=self.sample_time)
         await binance.session.close()
         await self.eth_btc_history_frame.put(eth_btc_history_frame)
-        print('Hello updating in manager')
 
 
 if __name__ == "__main__":

@@ -10,9 +10,12 @@ from checker.binance_handler import HistoryDataManager, BinanceGetDate
 async def main():
     model = LinearRegressionModel()
     binance = BinanceGetDate()
+    # Sets dates for loading historical data on currency pairs
     initial_from_date = convert_date_to_unix_time_by_string('2023-1-15')
     initial_to_date = convert_date_to_unix_time_by_string('2023-2-15')
-    update_period = 1000000  # time_to_seconds()
+    # Set how often historical data needs to update
+    update_period = 15  # time_to_seconds()
+    # Tasks for asynchronous execution
     tasks = [
         train_eth_btc_model(model, initial_from_date, initial_to_date, update_period, sample_time='1m'),
         binance.get_stream_of_pairs_data(['btcusdt', 'ethusdt']),
@@ -44,6 +47,13 @@ async def train_eth_btc_model(linear_model: LinearRegressionModel, from_date, to
 
 
 async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearRegressionModel):
+    """
+    This task monitors the price of the futures and, using the linear regression method,
+    determines its own movements in the price of ETH. If the price changes by 1% in the last 60 minutes,
+    the task prints a message to the console.
+    :param binance: LinearRegressionModel() class object.
+    :param linear_regression: (unix) defines initial start date of getting from binance.
+    """
     # response_timer_task = asyncio.create_task(response_timer(10))
     response_timer = ResponseTimer()
     asyncio.create_task(response_timer.run(timeout=10))
@@ -69,12 +79,32 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
             if price_change >= 0.01:
                 is_price_changed = True
                 last_exceeded_eth_price = current_eth_price
-
+            # Check is time to print response out
             is_timeout_passed = response_timer.check_timer()
             if is_timeout_passed and is_price_changed:
                 await response_timer.restart()
-                print('The ETHUSDT price has changed by 1% in the last 60 minutes.' +
-                      f'Last price:{last_exceeded_eth_price}')
+                print('The ETHUSDT price has changed by 1% in the last 60 minutes. ' +
+                      f'Last ETHUSDT price:{last_exceeded_eth_price}')
+
+
+
+
+
+
+
+async def plotter(data_frame: pd.DataFrame):
+    mpl.use('TkAgg')  # !IMPORTANT
+    # plot the data
+    fig, ax = plt.subplots()
+    ax.plot(data_frame['close_time'], data_frame['ETHUSDT'])
+    ax.plot(data_frame['close_time'], data_frame['BTCUSDT'])
+    ax.legend(labels=('ETHUSDT', 'BTCUSDT'))
+    # add labels and title
+    plt.xlabel('time')
+    plt.ylabel('crypto')
+    plt.title('Cypto Plot')
+    # show the plot
+    plt.show()
 
 
 if __name__ == "__main__":

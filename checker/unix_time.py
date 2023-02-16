@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-from asyncio.exceptions import InvalidStateError
 
 
 def main():
@@ -51,12 +50,18 @@ def time_to_seconds(**kwargs):
 
 
 class ResponseTimer:
+    """
+    A class that allows you to set the time and check if it has passed
+    in an asynchronous function
+    """
     def __init__(self):
-        # self.task = asyncio.create_task(self._run(timeout))
         self.timeout_passed_queue = asyncio.Queue(1)
         self.restarted = True
 
     async def run(self, timeout):
+        """
+        Run timer.
+        :param timeout: Set timeout in seconds."""
         while True:
             if self.restarted:
                 start_time = asyncio.get_running_loop().time()
@@ -71,11 +76,13 @@ class ResponseTimer:
                 await asyncio.sleep(1)
 
     def check_timer(self):
+        """ Allow to check is timeout passed. """
         if self.timeout_passed_queue.full():
             return True
         return False
 
     async def restart(self):
+        """ Restart timer. """
         self.restarted = True
         await self.timeout_passed_queue.get()
 

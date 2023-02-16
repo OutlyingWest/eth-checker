@@ -1,9 +1,6 @@
 import asyncio
-
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from checker.binance_handler import BinanceGetDate, HistoryDataManager
-from checker.unix_time import convert_date_to_unix_time_by_string
 
 
 async def main():
@@ -12,24 +9,28 @@ async def main():
 
 class LinearRegressionModel:
     def __init__(self):
-        self.model = asyncio.Queue(1)
-        # self.model = LinearRegression()
+        self.model = LinearRegression()
         # data for train model
-        self.eth_btc_data = pd.DataFrame()
+        self.eth_btc_frame = pd.DataFrame()
 
     def calculate_price_movements(self):
-        self.eth_btc_data['ETHUSDT_price_movements'] =\
-            self.eth_btc_data['ETHUSDT'].diff() / self.eth_btc_data['ETHUSDT'].shift(1)
-        self.eth_btc_data.dropna(inplace=True)
+        self.eth_btc_frame['ETHUSDT_price_movements'] = \
+            self.eth_btc_frame['ETHUSDT'].diff() / self.eth_btc_frame['ETHUSDT'].shift(1)
+        self.eth_btc_frame.dropna(inplace=True)
 
     async def train_model(self):
         """ Train the regression model """
         self.calculate_price_movements()
-        trane_data = self.eth_btc_data[['ETHUSDT', 'BTCUSDT']]
-        target_values = self.eth_btc_data['ETHUSDT_price_movements']
-        print(self.eth_btc_data)
-        await self.model.put(LinearRegression().fit(trane_data, target_values))
-        print('Hello train')
+        self.eth_btc_frame['ETHUSDT'] = self.eth_btc_frame['ETHUSDT']
+        trane_data = self.eth_btc_frame[['ETHUSDT', 'BTCUSDT']]
+        target_values = self.eth_btc_frame['ETHUSDT_price_movements']
+        self.model = LinearRegression().fit(trane_data, target_values)
+        # print(self.eth_btc_frame[['ETHUSDT', 'close_time']])
+        print(self.eth_btc_frame)
+        print('Updating of history data complete!')
+
+    def get_eth_btc_frame(self, frame):
+        self.eth_btc_frame = frame
 
 
 if __name__ == "__main__":
