@@ -69,7 +69,8 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
     """
     # Сreation of a timer object that determines the frequency of sending messages about exceeding the price
     response_timer = ResponseTimer()
-    response_timeout = time_to_seconds(minutes=1)  # 60 minutes
+    # Response to change price over 1% period
+    response_timeout = time_to_seconds(minutes=60)
     asyncio.create_task(response_timer.run(timeout=response_timeout))
     while True:
         # Get the current ETHUSDT and BTCUSDT prices
@@ -86,7 +87,7 @@ async def check_eth_course(binance: BinanceGetDate, linear_regression: LinearReg
             last_exceeded_eth_price = None
             price_change = abs(eth_movement_prediction[0] - current_eth_price) / current_eth_price
             if print_detailed_info:
-                print(f'ETHUSDT prices: Predicted:{current_eth_price} Current:{eth_movement_prediction[0]:.2f} '
+                print(f'ETHUSDT prices: Predicted:{eth_movement_prediction[0]:.2f} Current:{current_eth_price:.2f} '
                       f'Price change:{price_change:.2f} '
                       f'BTCUSDT price current:{current_btc_price}')
             if price_change >= 0.01:
