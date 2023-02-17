@@ -1,0 +1,13 @@
+# Set dates to define period of loading historical data on currency pairs.
+# Format: Year-Month-Day
+FROM_DATE=2023-2-7
+TO_DATE=2023-2-16
+
+# Set how often historical data needs to update (in minutes).
+UPDATE_PERIOD=3
+
+# Set sample time of getting historical data from Binance. Example format: 1m, 3h, 2d, 1M
+SAMPLE_TIME=1m
+
+# Print detailed info about each step of cycle in check_eth_course() task
+PRINT_DETAILED_INFO=False
