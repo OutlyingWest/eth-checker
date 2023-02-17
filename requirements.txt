@@ -2,3 +2,4 @@ pandas~=1.5
 numpy~=1.24
 scikit-learn~=1.2
 aiohttp~=3.8
+environs~=9.5
