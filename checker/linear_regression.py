@@ -1,3 +1,6 @@
+"""
+Contains class to interaction with linear regression model.
+"""
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 

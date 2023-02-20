@@ -1,4 +1,6 @@
-# Contains settings
+"""
+Contains features for load settings
+"""
 from dataclasses import dataclass
 from environs import Env
 

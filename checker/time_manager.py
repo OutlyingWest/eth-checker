@@ -1,3 +1,7 @@
+"""
+Contains functions to revert time format
+and class Timer to define response timeouts.
+"""
 import asyncio
 import datetime
 
@@ -47,7 +51,7 @@ def time_to_seconds(**kwargs):
 
 class ResponseTimer:
     """
-    A class that allows you to set the time and check if it has passed
+    A class that allows you to set the timeout and check if it has passed
     in an asynchronous function
     """
     def __init__(self):
@@ -57,7 +61,8 @@ class ResponseTimer:
     async def run(self, timeout):
         """
         Run timer.
-        :param timeout: Set timeout in seconds."""
+        :param timeout: Set timeout in seconds.
+        """
         while True:
             if self.restarted:
                 start_time = asyncio.get_running_loop().time()

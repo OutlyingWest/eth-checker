@@ -1,8 +1,11 @@
+"""
+Program entry point module.
+"""
 import asyncio
 import pandas as pd
 from checker.configuration import load_config
 from checker.linear_regression import LinearRegressionModel, LinearRegression
-from checker.unix_time import convert_date_to_unix_time_by_string, time_to_seconds, ResponseTimer
+from checker.time_manager import convert_date_to_unix_time_by_string, time_to_seconds, ResponseTimer
 from checker.binance_handler import HistoryDataManager, BinanceGetDate
 
 

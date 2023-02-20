@@ -1,3 +1,6 @@
+"""
+Contains classes and methods for loading and managing data from Binance.
+"""
 import json
 import asyncio
 import aiohttp
