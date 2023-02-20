@@ -94,7 +94,7 @@ class BinanceGetDate:
                 message = await socket.receive()
                 if message.type == aiohttp.WSMsgType.TEXT:
                     json_ticker = json.loads(message.data)
-                    if json_ticker.get('s') and json_ticker.get('c'):
+                    if 's' in json_ticker and 'c' in json_ticker:
                         # Put ticker price to the queue
                         if json_ticker.get('s') == 'BTCUSDT':
                             await self.btc_price_queue.put(float(json_ticker.get('c')))
